@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Anomaly Detection</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        #app {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h3 {
+            color: #007BFF;
+        }
+        .section pre {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .section p {
+            font-size: 16px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" x-data="appData">
+        <h1>File Upload and Anomaly Detection</h1>
+
+        <!-- File Upload Section -->
+        <div class="section">
+            <input type="file" x-ref="file" @change="uploadFile">
+        </div>
+
+        <!-- Columns Selection Section -->
+        <div class="section" x-show="columns.length > 0">
+            <h3>Select Columns for Anomaly Detection:</h3>
+            <div>
+                <template x-for="(column, index) in columns" :key="index">
+                    <label>
+                        <input type="checkbox" x-model="selectedColumns" :value="column"> <span x-text="column"></span>
+                    </label>
+                </template>
+            </div>
+        </div>
+
+        <!-- Contamination Input Section -->
+        <div class="section">
+            <h3>Contamination Parameter:</h3>
+            <input type="number" x-model="contamination" min="0" max="1" step="0.01" placeholder="Enter contamination (e.g., 0.05)">
+            <p>Contamination represents the proportion of anomalies in the dataset (e.g., 0.05 = 5%).</p>
+        </div>
+
+        <!-- Anomaly Detection Button -->
+        <div class="section">
+            <button @click="detectAnomalies">Detect Anomalies</button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="section" x-show="result">
+            <h3>Statistics:</h3>
+            <pre x-text="JSON.stringify(result?.stats.summary || {}, null, 2)"></pre>
+        </div>
+
+        <div class="section" x-show="result">
+            <h3>Anomaly Percentage:</h3>
+            <p x-text="result?.anomaly_percentage ? `${result.anomaly_percentage}%` : '0%'"></p>
+        </div>
+
+        <div class="section" x-show="result">
+            <h3>Anomalies:</h3>
+            <pre x-text="result.anomalies || 'No anomalies detected'"></pre>
+        </div>
+    </div>
+
+    <script>
+        function appData() {
+            return {
+                columns: [], // List of columns fetched from the file
+                selectedColumns: [], // User-selected columns for anomaly detection
+                contamination: 0.05, // Default contamination value
+                result: null, // Holds the result from anomaly detection
+                fileId: null, // Holds the file_id returned by /get_columns
+    
+                // Method to handle file upload
+                uploadFile() {
+                    const formData = new FormData();
+                    formData.append('file', this.$refs.file.files[0]);
+
+                    fetch('/get_columns', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data); // Debugging response
+                        this.columns = data.columns;
+                    })
+                    .catch(error => {
+                        alert('Error uploading file: ' + (error.message || 'Unknown error'));
+                    });
+                },
+
+                // Handle anomaly detection
+                detectAnomalies() {
+                    if (this.selectedColumns.length === 0) {
+                        alert('Please select at least one column for anomaly detection.');
+                        return;
+                    }
+
+                    if (this.contamination <= 0 || this.contamination > 1) {
+                        alert('Please enter a valid contamination value between 0 and 1.');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', this.$refs.file.files[0]); // Send the file along with the columns and contamination
+                    formData.append('columns', JSON.stringify(this.selectedColumns)); // Send selected columns
+                    formData.append('contamination', this.contamination); // Send contamination value
+
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.result = data; // Handle the result
+                    })
+                    .catch(error => {
+                        alert('Error detecting anomalies: ' + (error.message || 'Unknown error'));
+                    });
+                }
+            };
+        }
+    </script>
+    
+</body>
+</html>
