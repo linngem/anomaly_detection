@@ -106,9 +106,9 @@
 
         <div class="section" x-show="result">
             <h3>Anomaly Percentage:</h3>
-            <p x-text="result?.anomaly_percentage ? `${result.anomaly_percentage}%` : '0%'"></p>
+            <p x-text="result?.anomaly_percentage ? `${result.anomaly_percentage.toFixed(2)}%` : '0%'"></p>
         </div>
-
+        
         <div class="section" x-show="result">
             <h3>Anomalies:</h3>
             <pre x-text="result.anomalies || 'No anomalies detected'"></pre>
