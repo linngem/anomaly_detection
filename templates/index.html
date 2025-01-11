@@ -5,67 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Upload and Anomaly Detection</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-        }
-        #app {
-            max-width: 800px;
-            margin: 30px auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        input[type="file"] {
-            display: block;
-            margin: 20px auto;
-        }
-        button {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .section {
-            margin-bottom: 20px;
-        }
-        .section h3 {
-            color: #007BFF;
-        }
-        .section pre {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 5px;
-            font-size: 14px;
-            color: #333;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .section p {
-            font-size: 16px;
-            color: #555;
-        }
-    </style>
-</head>
-<body>
+<body> 
     <div id="app" x-data="appData">
         <h1>File Upload and Anomaly Detection</h1>
 
@@ -111,7 +54,9 @@
         
         <div class="section" x-show="result">
             <h3>Anomalies:</h3>
-            <pre x-text="result.anomalies || 'No anomalies detected'"></pre>
+        <main>
+            <pre x-text="result?.anomalies?.length ? result.anomalies : 'No anomalies detected'"></pre>
+        </main>
         </div>
     </div>
 

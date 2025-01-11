@@ -6,14 +6,13 @@ from flask_cors import CORS
 
 
 
-app = Flask(__name__,  static_folder='static')
+app = Flask(__name__, static_folder='static')
 CORS(app)
+
 @app.route('/')
 def index():
-
-    #backend_url = 'http://127.0.0.1:5000'  # Set backend URL dynamically for production
-    return render_template('index.html')
-
+    result = {"anomalies": []}
+    return render_template('index.html', result=result)
 
 @app.route('/get_columns', methods=['POST'])
 def get_columns():
@@ -37,7 +36,6 @@ def get_columns():
 
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -117,7 +115,6 @@ def upload_file():
 
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-
 
 if __name__ == "__main__":
     app.run(debug=True)
