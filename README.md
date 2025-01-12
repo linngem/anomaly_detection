@@ -17,6 +17,8 @@ This project is a web application for detecting anomalies in data using the Isol
 - flask-cors==5.0.0
 - scikit-learn==1.6.0
 - numpy==2.2.1
+- plotly
+- kaleido
 
 ## Installation
 
