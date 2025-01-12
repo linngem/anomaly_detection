@@ -7,6 +7,7 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
 
 <body> 
     <div id="app" x-data="appData">
@@ -14,7 +15,7 @@
 
         <!-- File Upload Section -->
         <div class="section">
-            <input type="file" x-ref="file" @change="uploadFile">
+            <input type="file" id="fileInput" x-ref="file" @change="uploadFile">
         </div>
 
         <!-- Columns Selection Section -->
@@ -54,72 +55,145 @@
         
         <div class="section" x-show="result">
             <h3>Anomalies:</h3>
-        <main>
-            <pre x-text="result?.anomalies?.length ? result.anomalies : 'No anomalies detected'"></pre>
-        </main>
+            <main>
+                <pre x-text="result?.anomalies?.length ? result.anomalies : 'No anomalies detected'"></pre>
+            </main>
         </div>
+
+        <!-- Id Selection Section -->
+        <div class="section" x-show="columns.length > 0">
+            <h3>Select the Variable for Plotting:</h3>
+            <select x-model="xAxis">
+                <option value="" disabled>Select a column</option>
+                <template x-for="(column, index) in columns" :key="index">
+                    <option :value="column" x-text="column"></option>
+                </template>
+            </select>
+        </div>
+
+        <!-- Plot Button -->
+        <div class="section" x-show="result">
+            <button @click="renderPlot">Render Plot</button>
+        </div>
+
+        <!-- Plot Section -->
+        <div class="section" x-show="plotData">
+            <h3>Anomaly Plot:</h3>
+            <div id="plot">
+                <!-- Plot image will be displayed here -->
+                <img :src="'data:image/png;base64,' + plotData" alt="Anomaly Plot">
+            </div>
+        </div>
+
+        <script>
+            function appData() {
+                return {
+                    columns: [], // List of columns fetched from the file
+                    selectedColumns: [], // User-selected columns for anomaly detection
+                    contamination: 0.05, // Default contamination value
+                    result: null, // Holds the result from anomaly detection
+                    xAxis: '', // Holds the selected column for the X-axis
+                    plotData: null, // Holds the plot data (Base64)
+        
+                    // Handle file upload
+                    uploadFile() {
+                        const formData = new FormData();
+                        formData.append('file', this.$refs.file.files[0]);
+        
+                        fetch('/get_columns', {
+                            method: 'POST',
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            this.columns = data.columns;
+                        })
+                        .catch(error => {
+                            alert('Error uploading file: ' + (error.message || 'Unknown error'));
+                        });
+                    },
+        
+                    // Handle anomaly detection
+                    detectAnomalies() {
+                        if (this.selectedColumns.length === 0) {
+                            alert('Please select at least one column for anomaly detection.');
+                            return;
+                        }
+        
+                        if (this.contamination <= 0 || this.contamination > 1) {
+                            alert('Please enter a valid contamination value between 0 and 1.');
+                            return;
+                        }
+        
+                        const formData = new FormData();
+                        formData.append('file', this.$refs.file.files[0]); 
+                        formData.append('columns', JSON.stringify(this.selectedColumns)); 
+                        formData.append('contamination', this.contamination); 
+                       
+                        fetch('/upload', {
+                            method: 'POST',
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            this.result = data;
+                        })
+                        .catch(error => {
+                            alert('Error detecting anomalies: ' + (error.message || 'Unknown error'));
+                        });
+                    },
+        
+                    // Render plot data
+                    renderPlotData() {
+                        const plotDiv = document.getElementById('plot');
+                        if (plotDiv) {
+                            plotDiv.innerHTML = `<img src="data:image/png;base64,${this.plotData}" alt="Anomaly Plot">`;
+                        }
+                    },
+        
+                    // Render plot for anomalies
+                    renderPlot() {
+                        if (!this.xAxis) {
+                            alert('Please select a column for the X-axis.');
+                            return;
+                        }
+        
+                        const formData = new FormData();
+                        formData.append('x_axis', this.xAxis);  // Send the column name for X-axis
+                        formData.append('anomalies', JSON.stringify(this.result?.anomalies || []));
+        
+                        // Get the file input element and append the file to the form data
+                        const fileInput = document.getElementById('fileInput');
+                        if (fileInput && fileInput.files.length > 0) {
+                            formData.append('file', fileInput.files[0]);  // Append the file to the form data
+                        } else {
+                            console.error('File input element not found or no file selected');
+                            alert('Please select a file to upload.');
+                            return;
+                        }
+        
+                        fetch('/plot', {
+                            method: 'POST',
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.image) {
+                                // Assuming 'image' is base64-encoded image data
+                                this.plotData = data.image.split(',')[1]; // Extract base64 part
+                            } else {
+                                console.error("Plot data not found in response");
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error retrieving plot data:', error);
+                            alert('Error retrieving plot data: ' + (error.message || 'Unknown error'));
+                        });
+                    }
+                };
+            }
+        </script>
+        
     </div>
-
-    <script>
-        function appData() {
-            return {
-                columns: [], // List of columns fetched from the file
-                selectedColumns: [], // User-selected columns for anomaly detection
-                contamination: 0.05, // Default contamination value
-                result: null, // Holds the result from anomaly detection
-                fileId: null, // Holds the file_id returned by /get_columns
-    
-                // Method to handle file upload
-                uploadFile() {
-                    const formData = new FormData();
-                    formData.append('file', this.$refs.file.files[0]);
-
-                    fetch('/get_columns', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log(data); // Debugging response
-                        this.columns = data.columns;
-                    })
-                    .catch(error => {
-                        alert('Error uploading file: ' + (error.message || 'Unknown error'));
-                    });
-                },
-
-                // Handle anomaly detection
-                detectAnomalies() {
-                    if (this.selectedColumns.length === 0) {
-                        alert('Please select at least one column for anomaly detection.');
-                        return;
-                    }
-
-                    if (this.contamination <= 0 || this.contamination > 1) {
-                        alert('Please enter a valid contamination value between 0 and 1.');
-                        return;
-                    }
-
-                    const formData = new FormData();
-                    formData.append('file', this.$refs.file.files[0]); // Send the file along with the columns and contamination
-                    formData.append('columns', JSON.stringify(this.selectedColumns)); // Send selected columns
-                    formData.append('contamination', this.contamination); // Send contamination value
-
-                    fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        this.result = data; // Handle the result
-                    })
-                    .catch(error => {
-                        alert('Error detecting anomalies: ' + (error.message || 'Unknown error'));
-                    });
-                }
-            };
-        }
-    </script>
-    
 </body>
 </html>

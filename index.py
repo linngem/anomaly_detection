@@ -3,8 +3,8 @@ import pandas as pd
 import json
 from sklearn.ensemble import IsolationForest
 from flask_cors import CORS
-
-
+import plotly.express as px
+import base64
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -102,6 +102,7 @@ def upload_file():
         anomaly_count = (df['anomaly'] == -1).sum()  # Count anomalies where the label is -1
         anomaly_percentage = (anomaly_count / len(df)) * 100  # Calculate the percentage of anomalies
 
+        # Pass anomalies in the response so they can be used in the plotting route
         return jsonify({
             "stats": stats,
             "anomalies": anomalies_list,
@@ -112,9 +113,67 @@ def upload_file():
                 "anomaly_percentage": anomaly_percentage
             }
         })
-
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.route('/plot', methods=['POST', 'OPTIONS'])
+def plot():
+    try:
+        # Get the X-axis column and anomalies from the request
+        x_axis = request.form.get('x_axis')
+        anomalies = request.form.get('anomalies')
+
+        if not x_axis or not anomalies:
+            return jsonify({"error": "Missing required data (x_axis or anomalies)."}), 400
+
+        # Convert anomalies back to a list of integers
+        anomalies = json.loads(anomalies)
+
+        # Retrieve the uploaded file to get the DataFrame
+        file = request.files.get('file')
+        if not file:
+            return jsonify({"error": "No file provided"}), 400
+
+        # Load the file into a DataFrame
+        df = pd.read_csv(file)
+
+        # Normalize column names: strip whitespace and convert to lowercase
+        df.columns = df.columns.str.strip().str.lower()
+
+        # Ensure the column exists in the DataFrame
+        if x_axis not in df.columns:
+            return jsonify({"error": f"Column '{x_axis}' does not exist in the uploaded data."}), 400
+        
+        # Map anomaly values to 1 for 'Normal' and 0 for 'Anomaly'
+        df['anomaly'] = [1 if x == -1 else 0 for x in anomalies]
+
+        
+
+        # Create a histogram plot using Plotly
+        fig = px.histogram(df, x=x_axis, color='anomaly', barmode='overlay',
+                   labels={'anomaly': 'Anomaly Status'}, category_orders={'anomaly': [0, 1]})
+        fig.update_layout(title=f"Metric Distribution for Anomalies vs. Non-Anomalies for {x_axis}", xaxis_title="", yaxis_title="")
+        fig.update_layout(width=1000, height=300)
+        fig.show()
+
+                # Convert to PNG and encode to base64
+        img_bytes = fig.to_image(format='png')
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+
+        # Return the image as base64 in the response
+        response = jsonify({'image': f'data:image/png;base64,{img_base64}'})
+
+        # Before returning the response
+        print(response.get_data(as_text=True))  # This will print the response content
+
+       
+        # Return the image as base64 in the response    
+        return jsonify({'image': f'data:image/png;base64,{img_base64}'})
+        
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while generating the plot: {str(e)}"}), 500
+
+if __name__ == '__main__':
+    app.debug = True
+    app.run(host='0.0.0.0', port=5000)
